@@ -14,4 +14,4 @@ CLANG_LIBS = \
 all: transform
 
 transform:
-	$(CXX) rewritersample.cpp $(LLVM_CXXFLAGS) $(CLANG_LIBS) $(LLVM_LIBS) $(LLVM_LDFLAGS) -lz -lcurses -lpthread -ldl 
+	$(CXX) transform.cpp $(LLVM_CXXFLAGS) $(CLANG_LIBS) $(LLVM_LIBS) $(LLVM_LDFLAGS) -lz -lcurses -lpthread -ldl 
