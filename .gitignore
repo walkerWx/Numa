@@ -1,0 +1,6 @@
+.*
+!.gitignore
+*.out
+*~
+bin/*
+!bin/.keep
