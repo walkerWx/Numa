@@ -25,29 +25,19 @@ class NumaASTVisitor : public RecursiveASTVisitor<NumaASTVisitor> {
 public:
   NumaASTVisitor(Rewriter &R) : TheRewriter(R) {}
 
-  bool VisitStmt(Stmt *s) {
+  bool VisitDecl(Decl *decl) {
+    // visit all the decls and print them out
+    std::string name = decl->getDeclKindName();
+    decl->dumpColor();
+    //std::cout << name << std::endl;
     return true;
   }
 
-  bool VisitFunctionDecl(FunctionDecl *f) {
-    // rename the function compute() tp main()
-    DeclarationName DeclName = f->getNameInfo().getName();
-    std::string FuncName = DeclName.getAsString();
-    if(FuncName.compare("compute") == 0){
-      std::stringstream SSReplace;
-      SSReplace << "main" ;
-      DeclarationNameInfo DeclNameInfo = f->getNameInfo();
-      SourceLocation ST = DeclNameInfo.getLocStart();
-      TheRewriter.ReplaceText(ST, FuncName.length(), SSReplace.str());
-    }
-    
-    // transform the type REAL to Double
-    QualType QT = f->getReturnType();
-    std::string typeStr = QT.getAsString();
-    std::cout << typeStr << std::endl;
+  bool VisitStmt(Stmt *stmt) {
+    // visit all the statements and dump them
+    stmt->dumpColor();
     return true;
   }
-
 private:
   Rewriter &TheRewriter;
 };
