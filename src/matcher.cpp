@@ -28,6 +28,20 @@ using namespace clang::tooling;
 
 static llvm::cl::OptionCategory MatcherSampleCategory("Matcher Sample");
 
+//To test the combination of matcher
+class AnyHandler : public MatchFinder::MatchCallback {
+public:
+	AnyHandler(Rewriter &Rewrite) : Rewrite(Rewrite) {}
+
+	virtual void run(const MatchFinder::MatchResult &Result) {
+		if(const Decl *decl = Result.Nodes.getNodeAs<clang::Decl>("decl")){
+			decl->dump();
+		}
+	}
+private:
+	Rewriter &Rewrite;
+};
+
 class IfStmtHandler : public MatchFinder::MatchCallback {
 public:
   IfStmtHandler(Rewriter &Rewrite) : Rewrite(Rewrite) {}
@@ -67,7 +81,10 @@ private:
 // the AST.
 class MyASTConsumer : public ASTConsumer {
 public:
-  MyASTConsumer(Rewriter &R) : HandlerForIf(R), HandlerForFor(R) {
+  MyASTConsumer(Rewriter &R) : HandlerForIf(R), HandlerForFor(R), HandlerForAny(R){
+	//Add a simple matcher for finding 'double' declaration
+	Matcher.addMatcher(varDecl(hasType(builtinType())).bind("decl"), &HandlerForAny);
+
     // Add a simple matcher for finding 'if' statements.
     Matcher.addMatcher(ifStmt().bind("ifStmt"), &HandlerForIf);
 
@@ -97,6 +114,7 @@ public:
   }
 
 private:
+  AnyHandler HandlerForAny;
   IfStmtHandler HandlerForIf;
   IncrementForLoopHandler HandlerForFor;
   MatchFinder Matcher;

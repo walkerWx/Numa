@@ -1,5 +1,6 @@
 CXX = clang++
-LLVM_CONFIG = llvm-config
+LLVM_PATH=$(HOME)/.local/share/clang+llvm-3.6.0-x86_64-apple-darwin/bin
+LLVM_CONFIG = $(LLVM_PATH)/llvm-config
 LLVM_CXXFLAGS += $(shell $(LLVM_CONFIG) --cxxflags)
 LLVM_LDFLAGS := $(shell $(LLVM_CONFIG) --ldflags) 
 LLVM_LIBS = $(shell $(LLVM_CONFIG) --libs --system-libs)
@@ -9,18 +10,19 @@ CLANG_LIBS = \
   -lclangSema -lclangStaticAnalyzerFrontend \
   -lclangStaticAnalyzerCheckers -lclangStaticAnalyzerCore \
   -lclangAnalysis -lclangARCMigrate -lclangRewrite \
-  -lclangEdit -lclangAST -lclangLex -lclangBasic
+  -lclangEdit -lclangTooling -lclangASTMatchers -lclangAST -lclangLex -lclangBasic
 
-.PHONY: all
+TARGETS=transform traverse matcher
+BINFILES=$(addprefix bin/,$(TARGETS))
 
-all: bin/transform bin/traverse bin/matcher
+.PHONY: all $(TARGETS) clean
 
-bin/transform: src/transform.cpp
-	$(CXX) $^ $(LLVM_CXXFLAGS) $(CLANG_LIBS) $(LLVM_LIBS) $(LLVM_LDFLAGS) -o $@
+all: $(TARGETS)
 
-bin/traverse: src/traverse.cpp
-	$(CXX) $^ $(LLVM_CXXFLAGS) $(CLANG_LIBS) $(LLVM_LIBS) $(LLVM_LDFLAGS) -o $@
+$(TARGETS): %: bin/%
 
-bin/matcher : matchers_rewriter.cpp 
+$(BINFILES): bin/%: src/%.cpp
 	$(CXX) $^ $(LLVM_CXXFLAGS) $(CLANG_LIBS) $(LLVM_LIBS) $(LLVM_LDFLAGS) -o $@
 	
+clean:
+	rm -f $(BINFILES)
