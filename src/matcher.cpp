@@ -1,12 +1,10 @@
 //------------------------------------------------------------------------------
 // AST matching sample. Demonstrates:
 //
-// * How to write a simple source tool using libTooling.
-// * How to use AST matchers to find interesting AST nodes.
-// * How to use the Rewriter API to rewrite the source code.
+// * Use AST matchers to find all the declarations whose type is 'REAL'
+// * Replace all the 'REAL' type declaration with 'double'
 //
-// Eli Bendersky (eliben@gmail.com)
-// This code is in the public domain
+// Walker Wang (walkernju@gmail.com)
 //------------------------------------------------------------------------------
 #include <string>
 
@@ -26,16 +24,17 @@ using namespace clang::ast_matchers;
 using namespace clang::driver;
 using namespace clang::tooling;
 
-static llvm::cl::OptionCategory MatcherSampleCategory("Matcher Sample");
+static llvm::cl::OptionCategory MatcherSampleCategory("Match and Replace");
 
-//To test the combination of matcher
-class AnyHandler : public MatchFinder::MatchCallback {
+class RealHandler : public MatchFinder::MatchCallback {
 public:
-	AnyHandler(Rewriter &Rewrite) : Rewrite(Rewrite) {}
+	RealHandler(Rewriter &Rewrite) : Rewrite(Rewrite) {}
 
 	virtual void run(const MatchFinder::MatchResult &Result) {
-		if(const Decl *decl = Result.Nodes.getNodeAs<clang::Decl>("decl")){
-			decl->dump();
+		if(const Decl *decl = Result.Nodes.getNodeAs<clang::Decl>("realDecl")){
+			SourceLocation ST = decl->getLocStart();
+			Rewrite.ReplaceText(ST, 4, "double");
+			ST = decl->getLocEnd();
 		}
 	}
 private:
@@ -81,9 +80,9 @@ private:
 // the AST.
 class MyASTConsumer : public ASTConsumer {
 public:
-  MyASTConsumer(Rewriter &R) : HandlerForIf(R), HandlerForFor(R), HandlerForAny(R){
+  MyASTConsumer(Rewriter &R) : HandlerForIf(R), HandlerForFor(R), HandlerForReal(R){
 	//Add a simple matcher for finding 'double' declaration
-	Matcher.addMatcher(varDecl(hasType(builtinType())).bind("decl"), &HandlerForAny);
+	Matcher.addMatcher(varDecl(hasType(recordDecl(hasName("REAL")))).bind("realDecl"), &HandlerForReal);
 
     // Add a simple matcher for finding 'if' statements.
     Matcher.addMatcher(ifStmt().bind("ifStmt"), &HandlerForIf);
@@ -114,7 +113,7 @@ public:
   }
 
 private:
-  AnyHandler HandlerForAny;
+  RealHandler HandlerForReal;
   IfStmtHandler HandlerForIf;
   IncrementForLoopHandler HandlerForFor;
   MatchFinder Matcher;

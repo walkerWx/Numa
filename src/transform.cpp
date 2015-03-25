@@ -26,7 +26,7 @@ public:
   NumaASTVisitor(Rewriter &R) : TheRewriter(R) {}
 
   bool VisitFunctionDecl(FunctionDecl *f) {
-    // rename the function compute() tp main()
+    // rename the function compute() to main()
     DeclarationName DeclName = f->getNameInfo().getName();
     std::string FuncName = DeclName.getAsString();
     if(FuncName.compare("compute") == 0){

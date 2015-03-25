@@ -2,11 +2,9 @@
 
 using namespace std;
 
-class X {
-};
-
+class REAL {};
 int compute() { 
-  X c;
+  REAL c;
 	return 0;
 }
 
@@ -17,11 +15,11 @@ static std::string foo() {
 int i;
 
 int main(){
-  X z;
+  REAL z;
   for(int i = 0; i < 10; i++){};
-  a = a + b;
   int a = 5;
-  int b = 4;
+  double b = 4;
+  a = a + b;
   if( a == b ){
   
   } else {
