@@ -3,16 +3,27 @@
 using namespace std;
 
 class REAL {};
-int compute() { 
+void compute() { 
   REAL c;
-	return 0;
 }
 
+int compute(int i, int j) {
+  return 1;
+}
+
+void compute(int i) {
+
+}
 static std::string foo() {
   return "foo";
 }
 
-int i;
+int *i;
+
+REAL realFunc(){
+  REAL x;
+  return x;
+}
 
 int main(){
   REAL z;

@@ -7,6 +7,7 @@
 // Walker Wang (walkernju@gmail.com)
 //------------------------------------------------------------------------------
 #include <string>
+#include <iostream>
 
 #include "clang/AST/AST.h"
 #include "clang/AST/ASTConsumer.h"
@@ -24,123 +25,132 @@ using namespace clang::ast_matchers;
 using namespace clang::driver;
 using namespace clang::tooling;
 
-static llvm::cl::OptionCategory MatcherSampleCategory("Match and Replace");
+static llvm::cl::OptionCategory MatcherSampleCategory(
+		"Match and Replace type REAL");
 
-class RealHandler : public MatchFinder::MatchCallback {
+class RealHandler: public MatchFinder::MatchCallback {
 public:
-	RealHandler(Rewriter &Rewrite) : Rewrite(Rewrite) {}
+	RealHandler(Rewriter &Rewrite) :
+			Rewrite(Rewrite) {
+	}
 
 	virtual void run(const MatchFinder::MatchResult &Result) {
-		if(const Decl *decl = Result.Nodes.getNodeAs<clang::Decl>("realDecl")){
-			SourceLocation ST = decl->getLocStart();
-			Rewrite.ReplaceText(ST, 4, "double");
-			ST = decl->getLocEnd();
+		std::string originalType = "REAL";
+		std::string replaceType = "double";
+		SourceLocation sourceLocation;
+		if (const VarDecl *decl = Result.Nodes.getNodeAs<clang::VarDecl>(
+				"realVarDecl")) {
+			decl->dump();
+			sourceLocation = decl->getLocStart();
+			Rewrite.ReplaceText(sourceLocation, originalType.length(),
+					replaceType);
+		}
+
+		if (const FunctionDecl *decl = Result.Nodes.getNodeAs<
+				clang::FunctionDecl>("realFuncDecl")) {
+			sourceLocation = decl->getReturnTypeSourceRange().getBegin();
+			Rewrite.ReplaceText(sourceLocation, originalType.length(),
+					replaceType);
+		}
+
+		if (const PointerType *type =
+				Result.Nodes.getNodeAs<clang::PointerType>("pointer")) {
+			type->dump();
 		}
 	}
 private:
 	Rewriter &Rewrite;
 };
 
-class IfStmtHandler : public MatchFinder::MatchCallback {
+// In iRRAM programs,the entry point of main function is via function 'void compute()'
+// We rewrite the function 'void compute()' to 'int main()'
+class MainFuncHandler: public MatchFinder::MatchCallback {
 public:
-  IfStmtHandler(Rewriter &Rewrite) : Rewrite(Rewrite) {}
+	MainFuncHandler(Rewriter &Rewriter) :
+			Rewriter(Rewriter) {
+	}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
-    // The matched 'if' statement was bound to 'ifStmt'.
-    if (const IfStmt *IfS = Result.Nodes.getNodeAs<clang::IfStmt>("ifStmt")) {
-      const Stmt *Then = IfS->getThen();
-      Rewrite.InsertText(Then->getLocStart(), "// the 'if' part\n", true, true);
+	virtual void run(const MatchFinder::MatchResult &Result) {
+		if (const FunctionDecl *mainFuncDecl = Result.Nodes.getNodeAs<
+				clang::FunctionDecl>("mainFuncDecl")) {
 
-      if (const Stmt *Else = IfS->getElse()) {
-        Rewrite.InsertText(Else->getLocStart(), "// the 'else' part\n", true,
-                           true);
-      }
-    }
-  }
+			std::string originalReturnType = "void";
+			std::string replaceReturnType = "int";
+			std::string originalFuncName = "compute";
+			std::string replaceFuncName = "main";
 
+			SourceLocation sourceLocation =
+					mainFuncDecl->getReturnTypeSourceRange().getBegin();
+			Rewriter.ReplaceText(sourceLocation, originalReturnType.length(),
+					replaceReturnType);
+
+			sourceLocation = mainFuncDecl->getNameInfo().getLoc();
+			Rewriter.ReplaceText(sourceLocation, originalFuncName.length(),
+					replaceFuncName);
+
+		}
+	}
 private:
-  Rewriter &Rewrite;
-};
-
-class IncrementForLoopHandler : public MatchFinder::MatchCallback {
-public:
-  IncrementForLoopHandler(Rewriter &Rewrite) : Rewrite(Rewrite) {}
-
-  virtual void run(const MatchFinder::MatchResult &Result) {
-    const VarDecl *IncVar = Result.Nodes.getNodeAs<VarDecl>("incVarName");
-    Rewrite.InsertText(IncVar->getLocStart(), "/* increment */", true, true);
-  }
-
-private:
-  Rewriter &Rewrite;
+	Rewriter &Rewriter;
 };
 
 // Implementation of the ASTConsumer interface for reading an AST produced
 // by the Clang parser. It registers a couple of matchers and runs them on
 // the AST.
-class MyASTConsumer : public ASTConsumer {
+class MyASTConsumer: public ASTConsumer {
 public:
-  MyASTConsumer(Rewriter &R) : HandlerForIf(R), HandlerForFor(R), HandlerForReal(R){
-	//Add a simple matcher for finding 'double' declaration
-	Matcher.addMatcher(varDecl(hasType(recordDecl(hasName("REAL")))).bind("realDecl"), &HandlerForReal);
+	MyASTConsumer(Rewriter &R) :
+			HandlerForReal(R), HandlerForMainFunc(R) {
+		//Add a matcher for finding type 'REAL' variable declaration
+//	Matcher.addMatcher(varDecl(hasType(recordDecl(hasName("REAL")))).bind("realVarDecl"), &HandlerForReal);
+		Matcher.addMatcher(pointerType().bind("pointer"), &HandlerForReal);
 
-    // Add a simple matcher for finding 'if' statements.
-    Matcher.addMatcher(ifStmt().bind("ifStmt"), &HandlerForIf);
+		//Add a matcher for finding function declaration with return type 'REAL'
+		Matcher.addMatcher(functionDecl().bind("realFuncDecl"),
+				&HandlerForReal);
 
-    // Add a complex matcher for finding 'for' loops with an initializer set
-    // to 0, < comparison in the codition and an increment. For example:
-    //
-    //  for (int i = 0; i < N; ++i)
-    Matcher.addMatcher(
-        forStmt(hasLoopInit(declStmt(hasSingleDecl(
-                    varDecl(hasInitializer(integerLiteral(equals(0))))
-                        .bind("initVarName")))),
-                hasIncrement(unaryOperator(
-                    hasOperatorName("++"),
-                    hasUnaryOperand(declRefExpr(to(
-                        varDecl(hasType(isInteger())).bind("incVarName")))))),
-                hasCondition(binaryOperator(
-                    hasOperatorName("<"),
-                    hasLHS(ignoringParenImpCasts(declRefExpr(to(
-                        varDecl(hasType(isInteger())).bind("condVarName"))))),
-                    hasRHS(expr(hasType(isInteger())))))).bind("forLoop"),
-        &HandlerForFor);
-  }
+		//Add a matcher for find the 'void compute()' function
+		Matcher.addMatcher(
+				functionDecl(hasType(asString("void (void)")),
+						hasName("compute")).bind("mainFuncDecl"),
+				&HandlerForMainFunc);
 
-  void HandleTranslationUnit(ASTContext &Context) override {
-    // Run the matchers when we have the whole TU parsed.
-    Matcher.matchAST(Context);
-  }
+	}
+
+	void HandleTranslationUnit(ASTContext &Context) override {
+		// Run the matchers when we have the whole TU parsed.
+		Matcher.matchAST(Context);
+	}
 
 private:
-  RealHandler HandlerForReal;
-  IfStmtHandler HandlerForIf;
-  IncrementForLoopHandler HandlerForFor;
-  MatchFinder Matcher;
+	RealHandler HandlerForReal;
+	MainFuncHandler HandlerForMainFunc;
+	MatchFinder Matcher;
 };
 
 // For each source file provided to the tool, a new FrontendAction is created.
-class MyFrontendAction : public ASTFrontendAction {
+class MyFrontendAction: public ASTFrontendAction {
 public:
-  MyFrontendAction() {}
-  void EndSourceFileAction() override {
-    TheRewriter.getEditBuffer(TheRewriter.getSourceMgr().getMainFileID())
-        .write(llvm::outs());
-  }
+	MyFrontendAction() {
+	}
+	void EndSourceFileAction() override {
+		TheRewriter.getEditBuffer(TheRewriter.getSourceMgr().getMainFileID()).write(
+				llvm::outs());
+	}
 
-  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
-                                                 StringRef file) override {
-    TheRewriter.setSourceMgr(CI.getSourceManager(), CI.getLangOpts());
-    return llvm::make_unique<MyASTConsumer>(TheRewriter);
-  }
+	std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+			StringRef file) override {
+		TheRewriter.setSourceMgr(CI.getSourceManager(), CI.getLangOpts());
+		return llvm::make_unique<MyASTConsumer>(TheRewriter);
+	}
 
 private:
-  Rewriter TheRewriter;
+	Rewriter TheRewriter;
 };
 
 int main(int argc, const char **argv) {
-  CommonOptionsParser op(argc, argv, MatcherSampleCategory);
-  ClangTool Tool(op.getCompilations(), op.getSourcePathList());
+	CommonOptionsParser op(argc, argv, MatcherSampleCategory);
+	ClangTool Tool(op.getCompilations(), op.getSourcePathList());
 
-  return Tool.run(newFrontendActionFactory<MyFrontendAction>().get());
+	return Tool.run(newFrontendActionFactory<MyFrontendAction>().get());
 }
