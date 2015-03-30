@@ -4,8 +4,8 @@
 using namespace std;
 using namespace iRRAM;
 void compute() { 
-  const REAL c;
-  static REAL iab;
+  const REAL c,d;
+  static REAL iab,ss;
 }
 
 int compute(int i, int j) {
@@ -22,7 +22,7 @@ static std::string foo() {
 int *i;
 
 REAL realFunc(){
-  REAL x = 1;
+  REAL x = 1,y;
   return x;
 }
 

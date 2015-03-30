@@ -38,6 +38,9 @@ public:
 		std::string originalType = "REAL";
 		std::string replaceType = "double";
 		SourceLocation sourceLocation;
+
+		// rewrite REAL variables to double variables
+		// e.g. REAL a; --> double a;
 		if (const VarDecl *decl = Result.Nodes.getNodeAs<clang::VarDecl>(
 				"realVarDecl")) {
 
@@ -53,12 +56,22 @@ public:
 					replaceType);
 		}
 
+		// rewrite functions with return type REAL to return double
+		// e.g. REAL f() { ... } --> double f() { ... }
 		if (const FunctionDecl *decl = Result.Nodes.getNodeAs<
 				clang::FunctionDecl>("realFuncDecl")) {
-//			decl->dump();
 			sourceLocation = decl->getReturnTypeSourceRange().getBegin();
 			Rewrite.ReplaceText(sourceLocation, originalType.length(),
 					replaceType);
+		}
+
+		// rewrite explicit type casting
+		// e.g.  REAL x = REAL(1); --> REAL x = double(1);
+		if (const ExplicitCastExpr *expr = Result.Nodes.getNodeAs<
+				ExplicitCastExpr>("realExplicitCastExpr")) {
+			sourceLocation = expr->getTypeInfoAsWritten()->getTypeLoc().getBeginLoc();
+			Rewrite.ReplaceText(sourceLocation, originalType.length(),
+								replaceType);
 		}
 
 	}
@@ -105,19 +118,41 @@ class MyASTConsumer: public ASTConsumer {
 public:
 	MyASTConsumer(Rewriter &R) :
 			HandlerForReal(R), HandlerForMainFunc(R) {
-		//Add a matcher for finding type 'iRRAM::REAL' variable declaration
+		// Add a matcher for finding type 'iRRAM::REAL' variable declaration
+		// e.g. -----------------------
+		//		REAL x;
+		//      const REAL y;
+		//		-----------------------
 		Matcher.addMatcher(
-				declStmt(containsDeclaration(0,varDecl(hasType(asString("class iRRAM::REAL"))).bind(
-						"realVarDecl"))), &HandlerForReal);
+				declStmt(
+						containsDeclaration(0,
+								varDecl(hasType(asString("class iRRAM::REAL"))).bind(
+										"realVarDecl"))), &HandlerForReal);
 		Matcher.addMatcher(
-				declStmt(containsDeclaration(0,varDecl(hasType(asString("const class iRRAM::REAL")),
-						hasType(isConstQualified())).bind("realVarDecl"))),
-				&HandlerForReal);
+				declStmt(
+						containsDeclaration(0,
+								varDecl(
+										hasType(
+												asString(
+														"const class iRRAM::REAL")),
+										hasType(isConstQualified())).bind(
+										"realVarDecl"))), &HandlerForReal);
 
-		//Add a matcher for finding function declaration with return type 'iRRAM::REAL'
+		// Add a matcher for finding function declaration with return type 'iRRAM::REAL'
+		// e.g. -----------------------
+		//		REAL f() {};
+		//		-----------------------
 		Matcher.addMatcher(
 				functionDecl(returns(asString("class iRRAM::REAL"))).bind(
 						"realFuncDecl"), &HandlerForReal);
+
+		// Add a matcher for finding explicit expression of type 'REAL'
+		// e.g. -----------------------
+		//		REAL x = REAL(1);
+		//		-----------------------
+		Matcher.addMatcher(
+				explicitCastExpr(hasType(asString("class iRRAM::REAL"))).bind(
+						"realExplicitCastExpr"), &HandlerForReal);
 
 		//Add a matcher for find the 'void compute()' function
 		Matcher.addMatcher(
