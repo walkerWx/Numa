@@ -1,10 +1,11 @@
+#include <iRRAM.h>
 #include <string>
 
 using namespace std;
-
-class REAL {};
+using namespace iRRAM;
 void compute() { 
-  REAL c;
+  const REAL c;
+  static REAL iab;
 }
 
 int compute(int i, int j) {
@@ -21,11 +22,11 @@ static std::string foo() {
 int *i;
 
 REAL realFunc(){
-  REAL x;
+  REAL x = 1;
   return x;
 }
 
-int main(){
+int f(){
   REAL z;
   for(int i = 0; i < 10; i++){};
   int a = 5;
@@ -39,3 +40,10 @@ int main(){
   return 0;
 }
 
+class A {
+public:
+  REAL a(){
+    REAL x = 1;
+    return x;
+  }
+};

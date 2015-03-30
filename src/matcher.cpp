@@ -40,23 +40,27 @@ public:
 		SourceLocation sourceLocation;
 		if (const VarDecl *decl = Result.Nodes.getNodeAs<clang::VarDecl>(
 				"realVarDecl")) {
-			decl->dump();
-			sourceLocation = decl->getLocStart();
+
+			QualType declType = decl->getTypeSourceInfo()->getType();
+
+			// we have to get to the location of the type name without any qualifiers
+			// e.g.
+			// when we match the declaration 'static REAL a;'
+			// we have to move get the location of 'REAL',but not the location of 'static'
+			sourceLocation =
+					decl->getTypeSourceInfo()->getTypeLoc().getBeginLoc();
 			Rewrite.ReplaceText(sourceLocation, originalType.length(),
 					replaceType);
 		}
 
 		if (const FunctionDecl *decl = Result.Nodes.getNodeAs<
 				clang::FunctionDecl>("realFuncDecl")) {
+//			decl->dump();
 			sourceLocation = decl->getReturnTypeSourceRange().getBegin();
 			Rewrite.ReplaceText(sourceLocation, originalType.length(),
 					replaceType);
 		}
 
-		if (const PointerType *type =
-				Result.Nodes.getNodeAs<clang::PointerType>("pointer")) {
-			type->dump();
-		}
 	}
 private:
 	Rewriter &Rewrite;
@@ -101,13 +105,19 @@ class MyASTConsumer: public ASTConsumer {
 public:
 	MyASTConsumer(Rewriter &R) :
 			HandlerForReal(R), HandlerForMainFunc(R) {
-		//Add a matcher for finding type 'REAL' variable declaration
-//	Matcher.addMatcher(varDecl(hasType(recordDecl(hasName("REAL")))).bind("realVarDecl"), &HandlerForReal);
-		Matcher.addMatcher(pointerType().bind("pointer"), &HandlerForReal);
-
-		//Add a matcher for finding function declaration with return type 'REAL'
-		Matcher.addMatcher(functionDecl().bind("realFuncDecl"),
+		//Add a matcher for finding type 'iRRAM::REAL' variable declaration
+		Matcher.addMatcher(
+				varDecl(hasType(asString("class iRRAM::REAL"))).bind(
+						"realVarDecl"), &HandlerForReal);
+		Matcher.addMatcher(
+				varDecl(hasType(asString("const class iRRAM::REAL")),
+						hasType(isConstQualified())).bind("realVarDecl"),
 				&HandlerForReal);
+
+		//Add a matcher for finding function declaration with return type 'iRRAM::REAL'
+		Matcher.addMatcher(
+				functionDecl(returns(asString("class iRRAM::REAL"))).bind(
+						"realFuncDecl"), &HandlerForReal);
 
 		//Add a matcher for find the 'void compute()' function
 		Matcher.addMatcher(
