@@ -107,11 +107,11 @@ public:
 			HandlerForReal(R), HandlerForMainFunc(R) {
 		//Add a matcher for finding type 'iRRAM::REAL' variable declaration
 		Matcher.addMatcher(
-				varDecl(hasType(asString("class iRRAM::REAL"))).bind(
-						"realVarDecl"), &HandlerForReal);
+				declStmt(containsDeclaration(0,varDecl(hasType(asString("class iRRAM::REAL"))).bind(
+						"realVarDecl"))), &HandlerForReal);
 		Matcher.addMatcher(
-				varDecl(hasType(asString("const class iRRAM::REAL")),
-						hasType(isConstQualified())).bind("realVarDecl"),
+				declStmt(containsDeclaration(0,varDecl(hasType(asString("const class iRRAM::REAL")),
+						hasType(isConstQualified())).bind("realVarDecl"))),
 				&HandlerForReal);
 
 		//Add a matcher for finding function declaration with return type 'iRRAM::REAL'
