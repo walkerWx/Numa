@@ -2,6 +2,6 @@
 using namespace iRRAM;
 
 void compute() {
-  REAL x = REAL(1);
+  REAL x = REAL(REAL(1));
   REAL(2);
 }

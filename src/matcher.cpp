@@ -69,9 +69,10 @@ public:
 		// e.g.  REAL x = REAL(1); --> REAL x = double(1);
 		if (const ExplicitCastExpr *expr = Result.Nodes.getNodeAs<
 				ExplicitCastExpr>("realExplicitCastExpr")) {
-			sourceLocation = expr->getTypeInfoAsWritten()->getTypeLoc().getBeginLoc();
+			sourceLocation =
+					expr->getTypeInfoAsWritten()->getTypeLoc().getBeginLoc();
 			Rewrite.ReplaceText(sourceLocation, originalType.length(),
-								replaceType);
+					replaceType);
 		}
 
 	}
@@ -120,30 +121,78 @@ public:
 			HandlerForReal(R), HandlerForMainFunc(R) {
 		// Add a matcher for finding type 'iRRAM::REAL' variable declaration
 		// e.g. -----------------------
-		//		REAL x;
-		//      const REAL y;
+		//		REAL a;
+		//		REAL& b;
+		//		REAL* c;
+		//		const REAL d;
+		//		const REAL& e;
+		//		const REAL* f;
 		//		-----------------------
+
+		// match 'REAL a;'
 		Matcher.addMatcher(
 				declStmt(
 						containsDeclaration(0,
-								varDecl(hasType(asString("class iRRAM::REAL"))).bind(
+								varDecl(hasType(asString(REAL_CLASS_NAME))).bind(
 										"realVarDecl"))), &HandlerForReal);
+
+		// match 'const REAL a;'
 		Matcher.addMatcher(
 				declStmt(
 						containsDeclaration(0,
 								varDecl(
 										hasType(
 												asString(
-														"const class iRRAM::REAL")),
+														CONST_REAL_CLASS_NAME)),
 										hasType(isConstQualified())).bind(
 										"realVarDecl"))), &HandlerForReal);
+
+		// match 'REAL& a;'
+		Matcher.addMatcher(
+				declStmt(
+						containsDeclaration(0,
+								varDecl(
+										hasType(
+												asString(
+														REAL_REFERENCE_CLASS_NAME))).bind(
+										"realVarDecl"))), &HandlerForReal);
+
+		// match 'const REAL& a;'
+		Matcher.addMatcher(
+				declStmt(
+						containsDeclaration(0,
+								varDecl(
+										hasType(
+												asString(
+														CONST_REAL_REFERENCE_CLASS_NAME))).bind(
+										"realVarDecl"))), &HandlerForReal);
+
+		// match 'REAL* a;'
+		Matcher.addMatcher(
+						declStmt(
+								containsDeclaration(0,
+										varDecl(
+												hasType(
+														asString(
+																REAL_POINTER_CLASS_NAME))).bind(
+												"realVarDecl"))), &HandlerForReal);
+
+		// match 'const REAL* a;'
+		Matcher.addMatcher(
+								declStmt(
+										containsDeclaration(0,
+												varDecl(
+														hasType(
+																asString(
+																		CONST_REAL_POINTER_CLASS_NAME))).bind(
+														"realVarDecl"))), &HandlerForReal);
 
 		// Add a matcher for finding function declaration with return type 'iRRAM::REAL'
 		// e.g. -----------------------
 		//		REAL f() {};
 		//		-----------------------
 		Matcher.addMatcher(
-				functionDecl(returns(asString("class iRRAM::REAL"))).bind(
+				functionDecl(returns(asString(REAL_CLASS_NAME))).bind(
 						"realFuncDecl"), &HandlerForReal);
 
 		// Add a matcher for finding explicit expression of type 'REAL'
@@ -151,7 +200,7 @@ public:
 		//		REAL x = REAL(1);
 		//		-----------------------
 		Matcher.addMatcher(
-				explicitCastExpr(hasType(asString("class iRRAM::REAL"))).bind(
+				explicitCastExpr(hasType(asString(REAL_CLASS_NAME))).bind(
 						"realExplicitCastExpr"), &HandlerForReal);
 
 		//Add a matcher for find the 'void compute()' function
@@ -171,7 +220,26 @@ private:
 	RealHandler HandlerForReal;
 	MainFuncHandler HandlerForMainFunc;
 	MatchFinder Matcher;
+
+	static const std::string REAL_CLASS_NAME;
+	static const std::string REAL_REFERENCE_CLASS_NAME;
+	static const std::string CONST_REAL_CLASS_NAME;
+	static const std::string CONST_REAL_REFERENCE_CLASS_NAME;
+	static const std::string REAL_POINTER_CLASS_NAME;
+	static const std::string CONST_REAL_POINTER_CLASS_NAME;
+
 };
+
+const std::string MyASTConsumer::REAL_CLASS_NAME = "class iRRAM::REAL";
+const std::string MyASTConsumer::REAL_REFERENCE_CLASS_NAME =
+		"class iRRAM::REAL &";
+const std::string MyASTConsumer::CONST_REAL_CLASS_NAME =
+		"const class iRRAM::REAL";
+const std::string MyASTConsumer::CONST_REAL_REFERENCE_CLASS_NAME =
+		"const class iRRAM::REAL &";
+const std::string MyASTConsumer::REAL_POINTER_CLASS_NAME = "class iRRAM::REAL *";
+const std::string MyASTConsumer::CONST_REAL_POINTER_CLASS_NAME =
+		"const class iRRAM::REAL *";
 
 // For each source file provided to the tool, a new FrontendAction is created.
 class MyFrontendAction: public ASTFrontendAction {
