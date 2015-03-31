@@ -56,6 +56,16 @@ public:
 					replaceType);
 		}
 
+		//rewrite REAL parameters  to double
+		// e.g. f(const REAL& a) --> f(const double& a)
+		if (const ParmVarDecl *decl =
+				Result.Nodes.getNodeAs<clang::ParmVarDecl>("realParmVarDecl")) {
+			sourceLocation =
+					decl->getTypeSourceInfo()->getTypeLoc().getBeginLoc();
+			Rewrite.ReplaceText(sourceLocation, originalType.length(),
+					replaceType);
+		}
+
 		// rewrite functions with return type REAL to return double
 		// e.g. REAL f() { ... } --> double f() { ... }
 		if (const FunctionDecl *decl = Result.Nodes.getNodeAs<
@@ -169,23 +179,38 @@ public:
 
 		// match 'REAL* a;'
 		Matcher.addMatcher(
-						declStmt(
-								containsDeclaration(0,
-										varDecl(
-												hasType(
-														asString(
-																REAL_POINTER_CLASS_NAME))).bind(
-												"realVarDecl"))), &HandlerForReal);
+				declStmt(
+						containsDeclaration(0,
+								varDecl(
+										hasType(
+												asString(
+														REAL_POINTER_CLASS_NAME))).bind(
+										"realVarDecl"))), &HandlerForReal);
 
 		// match 'const REAL* a;'
 		Matcher.addMatcher(
-								declStmt(
-										containsDeclaration(0,
-												varDecl(
-														hasType(
-																asString(
-																		CONST_REAL_POINTER_CLASS_NAME))).bind(
-														"realVarDecl"))), &HandlerForReal);
+				declStmt(
+						containsDeclaration(0,
+								varDecl(
+										hasType(
+												asString(
+														POINTER_TO_CONST_REAL_CLASS_NAME))).bind(
+										"realVarDecl"))), &HandlerForReal);
+
+		// match 'REAL * const a;'
+		Matcher.addMatcher(
+				declStmt(
+						containsDeclaration(0,
+								varDecl(
+										hasType(
+												asString(
+														CONST_POINTER_TO_REAL_CLASS_NAME))).bind(
+										"realVarDecl"))), &HandlerForReal);
+
+		// match ' returnType  somefunc(..., const REAL& a, ...)'
+		Matcher.addMatcher(
+				parmVarDecl(hasType(asString(CONST_REAL_REFERENCE_CLASS_NAME))).bind(
+						"realParmVarDecl"), &HandlerForReal);
 
 		// Add a matcher for finding function declaration with return type 'iRRAM::REAL'
 		// e.g. -----------------------
@@ -226,7 +251,8 @@ private:
 	static const std::string CONST_REAL_CLASS_NAME;
 	static const std::string CONST_REAL_REFERENCE_CLASS_NAME;
 	static const std::string REAL_POINTER_CLASS_NAME;
-	static const std::string CONST_REAL_POINTER_CLASS_NAME;
+	static const std::string POINTER_TO_CONST_REAL_CLASS_NAME;
+	static const std::string CONST_POINTER_TO_REAL_CLASS_NAME;
 
 };
 
@@ -238,8 +264,10 @@ const std::string MyASTConsumer::CONST_REAL_CLASS_NAME =
 const std::string MyASTConsumer::CONST_REAL_REFERENCE_CLASS_NAME =
 		"const class iRRAM::REAL &";
 const std::string MyASTConsumer::REAL_POINTER_CLASS_NAME = "class iRRAM::REAL *";
-const std::string MyASTConsumer::CONST_REAL_POINTER_CLASS_NAME =
+const std::string MyASTConsumer::POINTER_TO_CONST_REAL_CLASS_NAME =
 		"const class iRRAM::REAL *";
+const std::string MyASTConsumer::CONST_POINTER_TO_REAL_CLASS_NAME =
+		"class iRRAM::REAL *const";
 
 // For each source file provided to the tool, a new FrontendAction is created.
 class MyFrontendAction: public ASTFrontendAction {

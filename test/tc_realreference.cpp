@@ -10,3 +10,4 @@ void compute() {
   REAL const* r;
   const REAL const* s;
 }
+REAL* a,b;
