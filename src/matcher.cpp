@@ -122,13 +122,169 @@ private:
 	Rewriter &Rewriter;
 };
 
+// Hander for real functions in the iRRAM libraries
+class LibHandler: public MatchFinder::MatchCallback {
+public:
+	LibHandler(Rewriter &Rewriter) :
+			Rewriter(Rewriter) {
+	}
+
+	virtual void run(const MatchFinder::MatchResult &Result) {
+		if (const CallExpr *callExpr = Result.Nodes.getNodeAs<
+				clang::CallExpr>("realCallExpr")) {
+			std::string funcName = callExpr->getDirectCallee()->getNameInfo().getAsString();
+			SourceLocation sourceLocation = callExpr->getLocStart();
+
+			std::cout << funcName << std::endl;
+
+			if (funcName.compare("power") == 0) {
+				Rewriter.ReplaceText(sourceLocation, 5, "pow");
+			}
+
+			if (funcName.compare("modulo") == 0) {
+				const Expr *firstArg = callExpr->getArg(0);
+				const Expr *secondArg = callExpr->getArg(1);
+				const FunctionDecl *callee = callExpr->getDirectCallee();
+				for (auto itr = callee->param_begin(); itr != callee->param_end(); itr++) {
+					(*itr)->getType().getTypePtr()->dump();
+				}
+				std::cout << callExpr->getNumArgs() << std::endl;
+			}
+
+			if (funcName.compare("maximum") == 0) {
+				Rewriter.ReplaceText(sourceLocation, 7, "max");
+			}
+
+			if (funcName.compare("minimum") == 0) {
+				Rewriter.ReplaceText(sourceLocation, 7, "min");
+			}
+
+			if (funcName.compare("sqrt") == 0) {
+				// do nothing
+			}
+
+			if (funcName.compare("root") == 0) {
+
+			}
+
+			if (funcName.compare("sin") == 0) {
+				// we do nothing here because in iRRAM and c++ standard math library they have the same name
+			}
+
+			if (funcName.compare("cos") == 0) {
+				// do nothing
+			}
+
+			if (funcName.compare("tan") == 0) {
+				// do nothing
+			}
+
+			if (funcName.compare("cotan") == 0) {
+
+			}
+
+			if (funcName.compare("sec") == 0) {
+
+			}
+
+			if (funcName.compare("cosec") == 0) {
+
+			}
+
+			if (funcName.compare("asin") == 0) {
+
+			}
+
+			if (funcName.compare("acos") == 0) {
+
+			}
+
+			if (funcName.compare("atan") == 0) {
+
+			}
+
+			if (funcName.compare("acotan") == 0) {
+
+			}
+
+			if (funcName.compare("asec") == 0) {
+
+			}
+
+			if (funcName.compare("acosec") == 0) {
+
+			}
+
+			if (funcName.compare("sinh") == 0) {
+
+			}
+
+			if (funcName.compare("cosh") == 0) {
+
+			}
+
+			if (funcName.compare("tanh") == 0) {
+
+			}
+
+			if (funcName.compare("coth") == 0) {
+
+			}
+
+			if (funcName.compare("sech") == 0) {
+
+			}
+
+			if (funcName.compare("cosech") == 0) {
+
+			}
+
+			if (funcName.compare("asinh") == 0) {
+
+			}
+
+			if (funcName.compare("acosh") == 0) {
+
+			}
+
+			if (funcName.compare("atanh") == 0) {
+
+			}
+
+			if (funcName.compare("acoth") == 0) {
+
+			}
+
+			if (funcName.compare("asech") == 0) {
+
+			}
+
+			if (funcName.compare("acosech") == 0) {
+
+			}
+
+			if (funcName.compare("exp") == 0) {
+
+			}
+
+			if (funcName.compare("log") == 0) {
+
+			}
+
+		}
+	}
+
+private:
+	Rewriter &Rewriter;
+};
+
 // Implementation of the ASTConsumer interface for reading an AST produced
 // by the Clang parser. It registers a couple of matchers and runs them on
 // the AST.
 class MyASTConsumer: public ASTConsumer {
 public:
 	MyASTConsumer(Rewriter &R) :
-			HandlerForReal(R), HandlerForMainFunc(R) {
+			HandlerForReal(R), HandlerForMainFunc(R), HandlerForLib(R) {
 		// Add a matcher for finding type 'iRRAM::REAL' variable declaration
 		// e.g. -----------------------
 		//		REAL a;
@@ -212,7 +368,7 @@ public:
 				parmVarDecl(hasType(asString(CONST_REAL_REFERENCE_CLASS_NAME))).bind(
 						"realParmVarDecl"), &HandlerForReal);
 
-		// Add a matcher for finding function declaration with return type 'iRRAM::REAL'
+		// Add a matcher to find function declaration with return type 'iRRAM::REAL'
 		// e.g. -----------------------
 		//		REAL f() {};
 		//		-----------------------
@@ -220,7 +376,7 @@ public:
 				functionDecl(returns(asString(REAL_CLASS_NAME))).bind(
 						"realFuncDecl"), &HandlerForReal);
 
-		// Add a matcher for finding explicit expression of type 'REAL'
+		// Add a matcher to find explicit expression of type 'REAL'
 		// e.g. -----------------------
 		//		REAL x = REAL(1);
 		//		-----------------------
@@ -228,11 +384,19 @@ public:
 				explicitCastExpr(hasType(asString(REAL_CLASS_NAME))).bind(
 						"realExplicitCastExpr"), &HandlerForReal);
 
-		//Add a matcher for find the 'void compute()' function
+		//Add a matcher to find the 'void compute()' function
 		Matcher.addMatcher(
 				functionDecl(hasType(asString("void (void)")),
 						hasName("compute")).bind("mainFuncDecl"),
 				&HandlerForMainFunc);
+
+		//Add a matcher to find functions in iRRAM libraries
+		Matcher.addMatcher(
+				callExpr(
+						callee(
+								functionDecl(
+										returns(asString(REAL_CLASS_NAME))))).bind(
+						"realCallExpr"), &HandlerForLib);
 
 	}
 
@@ -244,6 +408,7 @@ public:
 private:
 	RealHandler HandlerForReal;
 	MainFuncHandler HandlerForMainFunc;
+	LibHandler HandlerForLib;
 	MatchFinder Matcher;
 
 	static const std::string REAL_CLASS_NAME;
