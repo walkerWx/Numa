@@ -67,6 +67,14 @@ public:
         return Visit(T->getPointeeType().split().Ty);
     }
 
+    void VisitElaboratedType(const ElaboratedType *T) {
+        return Visit(T->getNamedType().split().Ty);
+    }
+
+    void VisitArrayType(const ArrayType *T) {
+        return Visit(T->getElementType().split().Ty);
+    }
+
     bool isDerivedFrom(const Type *T, std::string typeName) {
         this->typeName = typeName;
         this->flag = false;
@@ -117,17 +125,19 @@ public:
     }
 
     virtual void run(const MatchFinder::MatchResult &Result) {
-        SourceLocation sourceLocation;
+        SourceRange sourceRange;
         const Type *T;
+        int length = 0;
 
         // rewrite REAL variables to double variables
         // e.g. REAL a; --> double a;
         if (const VarDecl *decl = Result.Nodes.getNodeAs<clang::VarDecl>(
                 "iRRAMDecl")) {
             T = decl->getType().split().Ty;
+            T->dump();
             if (decl->getTypeSourceInfo() != NULL) {
-                sourceLocation =
-                        decl->getTypeSourceInfo()->getTypeLoc().getBeginLoc();
+                sourceRange =
+                        decl->getTypeSourceInfo()->getTypeLoc().getSourceRange();
             }
         }
 
@@ -136,7 +146,7 @@ public:
         if (const FunctionDecl *decl = Result.Nodes.getNodeAs<
                 clang::FunctionDecl>("iRRAMDecl")) {
             T = decl->getReturnType().split().Ty;
-            sourceLocation = decl->getReturnTypeSourceRange().getBegin();
+            sourceRange = decl->getReturnTypeSourceRange();
         }
 
         // rewrite explicit type casting
@@ -144,30 +154,22 @@ public:
         if (const ExplicitCastExpr *expr = Result.Nodes.getNodeAs<
                 ExplicitCastExpr>("iRRAMExplicitCastExpr")) {
             T = expr->getTypeAsWritten().split().Ty;
-
-            sourceLocation =
-                    expr->getTypeInfoAsWritten()->getTypeLoc().getBeginLoc();
-
+            sourceRange =
+                    expr->getTypeInfoAsWritten()->getTypeLoc().getSourceRange();
         }
 
         if (visitor.isDerivedFrom(T, INTEGER.originType)) {
-            Rewriter.ReplaceText(sourceLocation, INTEGER.originType.length(),
-                    INTEGER.replaceType);
+            Rewriter.ReplaceText(sourceRange, INTEGER.replaceType);
         } else if (visitor.isDerivedFrom(T, RATIONAL.originType)) {
-            Rewriter.ReplaceText(sourceLocation, RATIONAL.originType.length(),
-                    RATIONAL.replaceType);
+            Rewriter.ReplaceText(sourceRange, RATIONAL.replaceType);
         } else if (visitor.isDerivedFrom(T, DYADIC.originType)) {
-            Rewriter.ReplaceText(sourceLocation, DYADIC.originType.length(),
-                    DYADIC.replaceType);
+            Rewriter.ReplaceText(sourceRange, DYADIC.replaceType);
         } else if (visitor.isDerivedFrom(T, LAZY_BOOLEAN.originType)) {
-            Rewriter.ReplaceText(sourceLocation,
-                    LAZY_BOOLEAN.originType.length(), LAZY_BOOLEAN.replaceType);
+            Rewriter.ReplaceText(sourceRange, LAZY_BOOLEAN.replaceType);
         } else if (visitor.isDerivedFrom(T, REAL.originType)) {
-            Rewriter.ReplaceText(sourceLocation, REAL.originType.length(),
-                    REAL.replaceType);
+            Rewriter.ReplaceText(sourceRange, REAL.replaceType);
         } else if (visitor.isDerivedFrom(T, COMPLEX.originType)) {
-            Rewriter.ReplaceText(sourceLocation, COMPLEX.originType.length(),
-                    COMPLEX.replaceType);
+            Rewriter.ReplaceText(sourceRange, COMPLEX.replaceType);
         }
 
     }
