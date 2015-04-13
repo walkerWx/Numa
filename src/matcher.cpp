@@ -93,6 +93,17 @@ public:
                 Rewriter.RemoveText(decl->getSourceRange());
             }
         }
+
+        if (const UsingDecl *decl = Result.Nodes.getNodeAs<clang::UsingDecl>(
+                "iRRAMUsingDecl")) {
+            if (const NamespaceDecl *namespaceDecl =
+                    decl->getQualifier()->getAsNamespace()) {
+                std::string name = namespaceDecl->getName().str();
+                if (name == "iRRAM") {
+                    Rewriter.RemoveText(decl->getSourceRange());
+                }
+            }
+        }
     }
 
 private:
@@ -224,8 +235,18 @@ public:
         Matcher.addMatcher(explicitCastExpr().bind("iRRAMExplicitCastExpr"),
                 &HandlerForiRRAM);
 
-        // Add a mather to find using declaration of iRRAM
+        // Add a mather to find using namespace declaration of iRRAM
+        // e.g. -----------------------
+        //        using namespace iRRAM;
+        //      -----------------------
         Matcher.addMatcher(usingDirectiveDecl().bind("iRRAMUsingDirectiveDecl"),
+                &HandlerForNamespace);
+
+        //Add a matcher to find using declaration of iRRAM
+        // e.g. -----------------------
+        //        using iRRAM::REAL;
+        //      -----------------------
+        Matcher.addMatcher(usingDecl().bind("iRRAMUsingDecl"),
                 &HandlerForNamespace);
 
         //Add a matcher to find the 'void compute()' function
