@@ -78,10 +78,31 @@ private:
     bool flag; // a flag to record whether the Type is derived from the base type
 };
 
+class NamespaceHandler: public MatchFinder::MatchCallback {
+public:
+    NamespaceHandler(Rewriter &Rewriter) :
+            Rewriter(Rewriter) {
+    }
+
+    virtual void run(const MatchFinder::MatchResult &Result) {
+        SourceLocation sourceLocation;
+        if (const UsingDirectiveDecl *decl = Result.Nodes.getNodeAs<
+                clang::UsingDirectiveDecl>("iRRAMUsingDirectiveDecl")) {
+            if (decl->getNominatedNamespace()->getIdentifier()->getName().str()
+                    == "iRRAM") {
+                Rewriter.RemoveText(decl->getSourceRange());
+            }
+        }
+    }
+
+private:
+    Rewriter &Rewriter;
+};
+
 class iRRAMHandler: public MatchFinder::MatchCallback {
 public:
     iRRAMHandler(Rewriter &Rewrite) :
-            Rewrite(Rewrite) {
+            Rewriter(Rewrite) {
     }
 
     virtual void run(const MatchFinder::MatchResult &Result) {
@@ -112,35 +133,35 @@ public:
         if (const ExplicitCastExpr *expr = Result.Nodes.getNodeAs<
                 ExplicitCastExpr>("iRRAMExplicitCastExpr")) {
             T = expr->getTypeAsWritten().split().Ty;
-            if (expr->getTypeAsWritten() != NULL) {
-                sourceLocation =
-                        expr->getTypeInfoAsWritten()->getTypeLoc().getBeginLoc();
-            }
+
+            sourceLocation =
+                    expr->getTypeInfoAsWritten()->getTypeLoc().getBeginLoc();
+
         }
 
         if (visitor.isDerivedFrom(T, INTEGER.originType)) {
-            Rewrite.ReplaceText(sourceLocation, INTEGER.originType.length(),
+            Rewriter.ReplaceText(sourceLocation, INTEGER.originType.length(),
                     INTEGER.replaceType);
         } else if (visitor.isDerivedFrom(T, RATIONAL.originType)) {
-            Rewrite.ReplaceText(sourceLocation, RATIONAL.originType.length(),
+            Rewriter.ReplaceText(sourceLocation, RATIONAL.originType.length(),
                     RATIONAL.replaceType);
         } else if (visitor.isDerivedFrom(T, DYADIC.originType)) {
-            Rewrite.ReplaceText(sourceLocation, DYADIC.originType.length(),
+            Rewriter.ReplaceText(sourceLocation, DYADIC.originType.length(),
                     DYADIC.replaceType);
         } else if (visitor.isDerivedFrom(T, LAZY_BOOLEAN.originType)) {
-            Rewrite.ReplaceText(sourceLocation,
+            Rewriter.ReplaceText(sourceLocation,
                     LAZY_BOOLEAN.originType.length(), LAZY_BOOLEAN.replaceType);
         } else if (visitor.isDerivedFrom(T, REAL.originType)) {
-            Rewrite.ReplaceText(sourceLocation, REAL.originType.length(),
+            Rewriter.ReplaceText(sourceLocation, REAL.originType.length(),
                     REAL.replaceType);
         } else if (visitor.isDerivedFrom(T, COMPLEX.originType)) {
-            Rewrite.ReplaceText(sourceLocation, COMPLEX.originType.length(),
+            Rewriter.ReplaceText(sourceLocation, COMPLEX.originType.length(),
                     COMPLEX.replaceType);
         }
 
     }
 private:
-    Rewriter &Rewrite;
+    Rewriter &Rewriter;
     NumaTypeVisitor visitor;
 };
 
@@ -182,7 +203,7 @@ private:
 class MyASTConsumer: public ASTConsumer {
 public:
     MyASTConsumer(Rewriter &R) :
-            HandlerForiRRAM(R), HandlerForMainFunc(R) {
+            HandlerForiRRAM(R), HandlerForMainFunc(R), HandlerForNamespace(R) {
         // Add a matcher to find iRRAM variable declaration or function declaration or parameter declaration
         // e.g. -----------------------
         //        REAL a;
@@ -192,16 +213,20 @@ public:
         //        const REAL& e;
         //        const REAL* f;
         //        REAL f(REAL, REAL*, REAL &){ ... };
-        //        -----------------------
-
+        //      -----------------------
         Matcher.addMatcher(decl().bind("iRRAMDecl"), &HandlerForiRRAM);
 
         // Add a matcher to find explicit expression of type 'REAL'
         // e.g. -----------------------
         //        REAL x = REAL(1);
-        //        -----------------------
+        //        INTEGER(10);
+        //      -----------------------
         Matcher.addMatcher(explicitCastExpr().bind("iRRAMExplicitCastExpr"),
                 &HandlerForiRRAM);
+
+        // Add a mather to find using declaration of iRRAM
+        Matcher.addMatcher(usingDirectiveDecl().bind("iRRAMUsingDirectiveDecl"),
+                &HandlerForNamespace);
 
         //Add a matcher to find the 'void compute()' function
         Matcher.addMatcher(
@@ -219,6 +244,7 @@ public:
 private:
     iRRAMHandler HandlerForiRRAM;
     MainFuncHandler HandlerForMainFunc;
+    NamespaceHandler HandlerForNamespace;
     MatchFinder Matcher;
 };
 
