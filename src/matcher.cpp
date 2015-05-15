@@ -118,6 +118,23 @@ private:
     Rewriter &Rewriter;
 };
 
+class IOStreamHandler: public MatchFinder::MatchCallback {
+public:
+    IOStreamHandler(Rewriter &Rewriter) :
+            Rewriter(Rewriter) {
+    }
+
+    virtual void run(const MatchFinder::MatchResult &Result) {
+        if (const CallExpr *expr = Result.Nodes.getNodeAs<CallExpr>(
+                "IOFunction")) {
+            Rewriter.ReplaceText(
+                    SourceRange(expr->getLocStart(), expr->getLocEnd()), "\"\"");
+        }
+    }
+private:
+    Rewriter &Rewriter;
+};
+
 class iRRAMHandler: public MatchFinder::MatchCallback {
 public:
     iRRAMHandler(Rewriter &Rewrite) :
@@ -216,7 +233,8 @@ private:
 class MyASTConsumer: public ASTConsumer {
 public:
     MyASTConsumer(Rewriter &R) :
-            HandlerForiRRAM(R), HandlerForMainFunc(R), HandlerForNamespace(R) {
+            HandlerForiRRAM(R), HandlerForMainFunc(R), HandlerForNamespace(R), HandlerForIOStream(
+                    R) {
         // Add a matcher to find iRRAM variable declaration or function declaration or parameter declaration
         // e.g. -----------------------
         //        REAL a;
@@ -257,6 +275,11 @@ public:
                         hasName("compute")).bind("mainFuncDecl"),
                 &HandlerForMainFunc);
 
+        // Add a matcher to handle io functions
+        Matcher.addMatcher(
+                callExpr(callee(functionDecl(hasName("setRwidth")))).bind(
+                        "IOFunction"), &HandlerForIOStream);
+
     }
 
     void HandleTranslationUnit(ASTContext &Context) override {
@@ -268,6 +291,7 @@ private:
     iRRAMHandler HandlerForiRRAM;
     MainFuncHandler HandlerForMainFunc;
     NamespaceHandler HandlerForNamespace;
+    IOStreamHandler HandlerForIOStream;
     MatchFinder Matcher;
 };
 
