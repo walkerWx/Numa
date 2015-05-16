@@ -124,10 +124,12 @@ double ln2() {
 	return 0.693147180;
 }
 
-int main() {
-	double a = 8.0;
-	double b = pi() / 2;
-	std::cout << root(a, 3) << std::endl;
-	std::cout << sin(pi()) << std::endl;
-	std::cout << cotan(b) << std::endl;
+double limit (double f(int p)) {
+  return f(-10);
+}
+
+double limit (double f(int p,const double&,const double&),
+    const double& x,
+    const double& y) {
+  return f(-10 , x, y);
 }

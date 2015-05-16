@@ -2,5 +2,5 @@
 
 
 void compute() {
-  iRRAM::ABC a;
+  iRRAM::REAL a;
 }

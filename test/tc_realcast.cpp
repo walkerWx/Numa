@@ -1,7 +1,6 @@
 #include <iRRAM.h>
-using namespace iRRAM;
 
 void compute() {
-  REAL x = REAL(REAL(1));
-  REAL(2);
+  iRRAM::REAL x = iRRAM::REAL(iRRAM::REAL(1));
+  iRRAM::REAL(2);
 }

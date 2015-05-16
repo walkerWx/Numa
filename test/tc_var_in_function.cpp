@@ -5,7 +5,17 @@ using namespace iRRAM;
 
 
 void compute() { 
-  REAL single;
+  
+  int i;
+  float f;
+
+  RATIONAL r;
+
+  REAL single = 1.03;
+
+  REAL const * const r;
+
+  int (*fn)(const REAL r[], double);
   
   REAL multi_1, multi_2;
 
@@ -25,7 +35,7 @@ void compute() {
 }
 
 void f(){
-  REAL single;
+  REAL single = REAL(1);
   
   REAL multi_1, multi_2;
 

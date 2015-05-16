@@ -4,6 +4,8 @@
 *~
 bin/*
 !bin/.keep
+test/*
+!test/.keep
 tmp/*
 examples/*
 run.sh

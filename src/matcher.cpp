@@ -98,7 +98,7 @@ public:
                 clang::UsingDirectiveDecl>("iRRAMUsingDirectiveDecl")) {
             if (decl->getNominatedNamespace()->getIdentifier()->getName().str()
                     == "iRRAM") {
-                Rewriter.RemoveText(decl->getSourceRange());
+                Rewriter.ReplaceText(decl->getIdentLocation(), 5, "std");
             }
         }
 
@@ -128,7 +128,8 @@ public:
         if (const CallExpr *expr = Result.Nodes.getNodeAs<CallExpr>(
                 "IOFunction")) {
             Rewriter.ReplaceText(
-                    SourceRange(expr->getLocStart(), expr->getLocEnd()), "\"\"");
+                    SourceRange(expr->getLocStart(), expr->getLocEnd()),
+                    "\"\"");
         }
     }
 private:
@@ -153,8 +154,11 @@ public:
             T = decl->getType().split().Ty;
             T->dump();
             if (decl->getTypeSourceInfo() != NULL) {
-                sourceRange =
-                        decl->getTypeSourceInfo()->getTypeLoc().getSourceRange();
+                TypeLoc tl = decl->getTypeSourceInfo()->getTypeLoc();
+                while (tl.getNextTypeLoc()) {
+                    tl = tl.getNextTypeLoc();
+                }
+                sourceRange = tl.getSourceRange();
             }
         }
 
