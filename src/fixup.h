@@ -13,7 +13,6 @@
 #include <cmath>
 #include <string>
 #include <iostream>
-#include <stdio.h>
 
 /****************************************************************************/
 // arithmetic functions
@@ -92,6 +91,8 @@ double limit (double f(int,const double &,const double&),
     const double& y);
 
 bool bound(double a, int p);
+
+double iRRAM_exec (double f(const double&), const double&);
 
 
 using std::string;

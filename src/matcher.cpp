@@ -36,7 +36,7 @@ struct ReplaceTypePair {
 
 const ReplaceTypePair INTEGER("INTEGER", "int");
 const ReplaceTypePair RATIONAL("RATIONAL", "double");
-const ReplaceTypePair DYADIC("DYADIC", "unknown");
+const ReplaceTypePair DYADIC("DYADIC", "double");
 const ReplaceTypePair LAZY_BOOLEAN("LAZY_BOOLEAN", "bool");
 const ReplaceTypePair REAL("REAL", "double");
 const ReplaceTypePair COMPLEX("COMPLEX", "unknown");
@@ -173,7 +173,6 @@ public:
         // e.g.  REAL x = REAL(1); --> REAL x = double(1);
         if (const ExplicitCastExpr *expr = Result.Nodes.getNodeAs<
                 ExplicitCastExpr>("iRRAMExplicitCastExpr")) {
-            expr->dump();
             T = expr->getTypeAsWritten().split().Ty;
             sourceRange =
                     expr->getTypeInfoAsWritten()->getTypeLoc().getSourceRange();
@@ -243,13 +242,30 @@ private:
 class iRRAMInitHandler: public MatchFinder::MatchCallback {
 public:
     iRRAMInitHandler(Rewriter &Rewriter) :
-    Rewriter(Rewriter) {
+            Rewriter(Rewriter) {
     }
     virtual void run(const MatchFinder::MatchResult &Result) {
         if (const CallExpr *expr = Result.Nodes.getNodeAs<clang::CallExpr>(
                 "iRRAMInit")) {
             Rewriter.RemoveText(
                     SourceRange(expr->getLocStart(), expr->getLocEnd()));
+        }
+    }
+private:
+    Rewriter &Rewriter;
+};
+
+class iRRAMMethodHandler: public MatchFinder::MatchCallback {
+public:
+    iRRAMMethodHandler(Rewriter &Rewriter) :
+            Rewriter(Rewriter) {
+    }
+    virtual void run(const MatchFinder::MatchResult &Result) {
+        if (const CXXMemberCallExpr *expr = Result.Nodes.getNodeAs<
+                clang::CXXMemberCallExpr>("iRRAMMethod")) {
+            Rewriter.ReplaceText(expr->getSourceRange(),
+                    expr->getImplicitObjectArgument()->getSourceRange());
+
         }
     }
 private:
@@ -263,7 +279,7 @@ class MyASTConsumer: public ASTConsumer {
 public:
     MyASTConsumer(Rewriter &R) :
             HandlerForiRRAM(R), HandlerForMainFunc(R), HandlerForNamespace(R), HandlerForIOStream(
-                    R), HandlerForiRRAMInit(R) {
+                    R), HandlerForiRRAMInit(R), HandlerForiRRAMMethod(R) {
         // Add a matcher to find iRRAM variable declaration or function declaration or parameter declaration
         // e.g. -----------------------
         //        REAL a;
@@ -315,6 +331,10 @@ public:
                 callExpr(callee(functionDecl(hasName("iRRAM_initialize")))).bind(
                         "iRRAMInit"), &HandlerForiRRAMInit);
 
+        // Add a matcher to handler iRRAM methods
+        Matcher.addMatcher(memberCallExpr().bind("iRRAMMethod"),
+                &HandlerForiRRAMMethod);
+
         // Add a matcher to handle io functions
         Matcher.addMatcher(
                 callExpr(callee(functionDecl(hasName("setRwidth")))).bind(
@@ -333,6 +353,7 @@ private:
     NamespaceHandler HandlerForNamespace;
     IOStreamHandler HandlerForIOStream;
     iRRAMInitHandler HandlerForiRRAMInit;
+    iRRAMMethodHandler HandlerForiRRAMMethod;
     MatchFinder Matcher;
 };
 

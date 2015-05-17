@@ -6,6 +6,7 @@
  */
 
 #include "fixup.h"
+
 #include <iostream>
 #include <cmath>
 #include <string>
@@ -143,3 +144,7 @@ double limit (double f(int p,const double&,const double&),
 bool bound(double a, int p) {
   return a < pow(2,p);
 }
+double iRRAM_exec (double f(const double&), const double& p) {
+  return f(p);
+}
+
