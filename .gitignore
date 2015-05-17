@@ -8,4 +8,3 @@ test/*
 !test/.keep
 tmp/*
 output/*
-run.sh
