@@ -152,7 +152,6 @@ public:
         if (const VarDecl *decl = Result.Nodes.getNodeAs<clang::VarDecl>(
                 "iRRAMDecl")) {
             T = decl->getType().split().Ty;
-            T->dump();
             if (decl->getTypeSourceInfo() != NULL) {
                 TypeLoc tl = decl->getTypeSourceInfo()->getTypeLoc();
                 while (tl.getNextTypeLoc()) {
@@ -174,9 +173,19 @@ public:
         // e.g.  REAL x = REAL(1); --> REAL x = double(1);
         if (const ExplicitCastExpr *expr = Result.Nodes.getNodeAs<
                 ExplicitCastExpr>("iRRAMExplicitCastExpr")) {
+            expr->dump();
             T = expr->getTypeAsWritten().split().Ty;
             sourceRange =
                     expr->getTypeInfoAsWritten()->getTypeLoc().getSourceRange();
+        }
+
+        // rewrite new operation
+        // e.g. new REAL[1]; --> new double[1];
+        if (const CXXNewExpr *expr = Result.Nodes.getNodeAs<clang::CXXNewExpr>(
+                "newOperation")) {
+            T = expr->getAllocatedType().split().Ty;
+            sourceRange =
+                    expr->getAllocatedTypeSourceInfo()->getTypeLoc().getSourceRange();
         }
 
         if (visitor.isDerivedFrom(T, INTEGER.originType)) {
@@ -231,6 +240,22 @@ private:
     Rewriter &Rewriter;
 };
 
+class iRRAMInitHandler: public MatchFinder::MatchCallback {
+public:
+    iRRAMInitHandler(Rewriter &Rewriter) :
+    Rewriter(Rewriter) {
+    }
+    virtual void run(const MatchFinder::MatchResult &Result) {
+        if (const CallExpr *expr = Result.Nodes.getNodeAs<clang::CallExpr>(
+                "iRRAMInit")) {
+            Rewriter.RemoveText(
+                    SourceRange(expr->getLocStart(), expr->getLocEnd()));
+        }
+    }
+private:
+    Rewriter &Rewriter;
+};
+
 // Implementation of the ASTConsumer interface for reading an AST produced
 // by the Clang parser. It registers a couple of matchers and runs them on
 // the AST.
@@ -238,7 +263,7 @@ class MyASTConsumer: public ASTConsumer {
 public:
     MyASTConsumer(Rewriter &R) :
             HandlerForiRRAM(R), HandlerForMainFunc(R), HandlerForNamespace(R), HandlerForIOStream(
-                    R) {
+                    R), HandlerForiRRAMInit(R) {
         // Add a matcher to find iRRAM variable declaration or function declaration or parameter declaration
         // e.g. -----------------------
         //        REAL a;
@@ -258,6 +283,12 @@ public:
         //      -----------------------
         Matcher.addMatcher(explicitCastExpr().bind("iRRAMExplicitCastExpr"),
                 &HandlerForiRRAM);
+
+        // Add a matcher to find "new" operations of iRRAM types
+        // e.g. ---------------------
+        //        REAL r* = new REAL[1];
+        //      ---------------------
+        Matcher.addMatcher(newExpr().bind("newOperation"), &HandlerForiRRAM);
 
         // Add a mather to find using namespace declaration of iRRAM
         // e.g. -----------------------
@@ -279,6 +310,11 @@ public:
                         hasName("compute")).bind("mainFuncDecl"),
                 &HandlerForMainFunc);
 
+        // Add a matcher to find 'iRRAM_initialize' function
+        Matcher.addMatcher(
+                callExpr(callee(functionDecl(hasName("iRRAM_initialize")))).bind(
+                        "iRRAMInit"), &HandlerForiRRAMInit);
+
         // Add a matcher to handle io functions
         Matcher.addMatcher(
                 callExpr(callee(functionDecl(hasName("setRwidth")))).bind(
@@ -296,6 +332,7 @@ private:
     MainFuncHandler HandlerForMainFunc;
     NamespaceHandler HandlerForNamespace;
     IOStreamHandler HandlerForIOStream;
+    iRRAMInitHandler HandlerForiRRAMInit;
     MatchFinder Matcher;
 };
 

@@ -13,6 +13,7 @@
 #include <cmath>
 #include <string>
 #include <iostream>
+#include <stdio.h>
 
 /****************************************************************************/
 // arithmetic functions
@@ -82,12 +83,15 @@ double pi();   // = 3.141592653...
 double euler();   // = 2.718281828...
 double ln2();   // = 0.693147180...
 
+double limit (double f(int p));
+
+double limit (double f(int p,const double&),const double&);
 
 double limit (double f(int,const double &,const double&),
     const double& x,
     const double& y);
 
-double limit (double f(int p));
+bool bound(double a, int p);
 
 
 using std::string;

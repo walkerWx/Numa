@@ -10,6 +10,7 @@
 #include <cmath>
 #include <string>
 #include <algorithm>
+#include <stdlib.h>
 
 /****************************************************************************/
 // arithmetic functions
@@ -128,8 +129,17 @@ double limit (double f(int p)) {
   return f(-10);
 }
 
+double limit(double f(int p,const double&),const double& a) {
+  return f(-10,a);
+}
+
 double limit (double f(int p,const double&,const double&),
     const double& x,
     const double& y) {
   return f(-10 , x, y);
+}
+
+
+bool bound(double a, int p) {
+  return a < pow(2,p);
 }
