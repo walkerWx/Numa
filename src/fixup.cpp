@@ -19,9 +19,12 @@
 double power(const double& x, const double& y) {
 	return pow(x, y);
 }
-double power(const double& x, int n) {
-	return pow(x, n);
+double square(const double& x) {
+  return x*x;
 }
+//double power(const double& x, int n) {
+//	return pow(x, n);
+//}
 double modulo(const double& x, const double& y) {
 	return x - round(x / y) * y;
 }
@@ -144,7 +147,97 @@ double limit (double f(int p,const double&,const double&),
 bool bound(double a, int p) {
   return a < pow(2,p);
 }
+
+int upperbound(const double& x) {
+  return log(fabs(x)) / log(2.0) + 1;
+}
+
+int size(const double& x) {
+  return 100;
+}
+
+bool positive(double x, int p) {
+  return x > 0;
+}
+
 double iRRAM_exec (double f(const double&), const double& p) {
   return f(p);
 }
 
+int iRRAM_exec (int f(const int&),const int& p) {
+  return f(p);
+}
+
+int choose (const bool x1,
+            const bool x2,
+            const bool x3,
+            const bool x4,
+            const bool x5,
+            const bool x6 ) {
+  if (x1) return 1; else 
+    if (x2) return 2; else 
+      if (x3) return 3; else 
+        if (x4) return 4; else 
+          if (x5) return 5; else 
+            return 6;
+
+}
+
+// we should implement methods to calculate lipschitz number here
+// but for convinence, we just return a specific number
+double    lipschitz  (double f(const double&),
+                           int lip,
+                           bool on_domain(const double&),
+                           const double& x){
+  return f(x);
+}
+
+double    lipschitz  (double f(const double&),
+                           double lip_f(const double&),
+                           bool on_domain(const double&),
+                           const double& x) {
+  return f(x);
+}
+
+double    lipschitz  (double f(const double&,const double&),
+                           int lip,
+                           bool on_domain(const double&,const double&),
+                           const double& x,
+                           const double& y) {
+  return f(x,y);
+}
+
+double    lipschitz  (double f(int, const double&),
+                           int lip,
+                           bool on_domain(int k,const double&),
+                           int k,
+                           const double& x) {
+  return f(k,x);
+}
+
+double    lipschitz  (double f(int, const double&,const double&),
+                           int lip,
+                           bool on_domain(int k,const double&,const double&),
+                           int k,
+                           const double& x,
+                           const double& y) { 
+  return f(k,x,y);
+}
+
+double    lipschitz (double f(const double&),
+                          double lip_f(const double&),
+                          const double& x) {
+  return f(x);
+}
+
+double approx(const double& x,int p) {
+  return x;
+}
+
+int module (double f(const double& x), const double& y,int p) {
+  return p;
+}
+
+void continous_begin() {}
+void continous_end() {}
+using std::string;

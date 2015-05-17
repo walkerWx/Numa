@@ -36,7 +36,7 @@ struct ReplaceTypePair {
 
 const ReplaceTypePair INTEGER("INTEGER", "int");
 const ReplaceTypePair RATIONAL("RATIONAL", "double");
-const ReplaceTypePair DYADIC("DYADIC", "double");
+const ReplaceTypePair DYADIC("DYADIC", "float");
 const ReplaceTypePair LAZY_BOOLEAN("LAZY_BOOLEAN", "bool");
 const ReplaceTypePair REAL("REAL", "double");
 const ReplaceTypePair COMPLEX("COMPLEX", "unknown");
@@ -127,9 +127,8 @@ public:
     virtual void run(const MatchFinder::MatchResult &Result) {
         if (const CallExpr *expr = Result.Nodes.getNodeAs<CallExpr>(
                 "IOFunction")) {
-            Rewriter.ReplaceText(
-                    SourceRange(expr->getLocStart(), expr->getLocEnd()),
-                    "\"\"");
+            expr->dump();
+            Rewriter.ReplaceText(expr->getSourceRange(), "\"\"");
         }
     }
 private:
@@ -150,6 +149,20 @@ public:
         // rewrite REAL variables to double variables
         // e.g. REAL a; --> double a;
         if (const VarDecl *decl = Result.Nodes.getNodeAs<clang::VarDecl>(
+                "iRRAMDecl")) {
+            T = decl->getType().split().Ty;
+            if (decl->getTypeSourceInfo() != NULL) {
+                TypeLoc tl = decl->getTypeSourceInfo()->getTypeLoc();
+                while (tl.getNextTypeLoc()) {
+                    tl = tl.getNextTypeLoc();
+                }
+                sourceRange = tl.getSourceRange();
+            }
+        }
+
+        // rewrite REAL variables to double variables
+        // e.g. REAL a; --> double a;
+        if (const FieldDecl *decl = Result.Nodes.getNodeAs<clang::FieldDecl>(
                 "iRRAMDecl")) {
             T = decl->getType().split().Ty;
             if (decl->getTypeSourceInfo() != NULL) {
@@ -239,14 +252,14 @@ private:
     Rewriter &Rewriter;
 };
 
-class iRRAMInitHandler: public MatchFinder::MatchCallback {
+class RemoveHandler: public MatchFinder::MatchCallback {
 public:
-    iRRAMInitHandler(Rewriter &Rewriter) :
+    RemoveHandler(Rewriter &Rewriter) :
             Rewriter(Rewriter) {
     }
     virtual void run(const MatchFinder::MatchResult &Result) {
         if (const CallExpr *expr = Result.Nodes.getNodeAs<clang::CallExpr>(
-                "iRRAMInit")) {
+                "ExprToRemove")) {
             Rewriter.RemoveText(
                     SourceRange(expr->getLocStart(), expr->getLocEnd()));
         }
@@ -279,7 +292,7 @@ class MyASTConsumer: public ASTConsumer {
 public:
     MyASTConsumer(Rewriter &R) :
             HandlerForiRRAM(R), HandlerForMainFunc(R), HandlerForNamespace(R), HandlerForIOStream(
-                    R), HandlerForiRRAMInit(R), HandlerForiRRAMMethod(R) {
+                    R), HandlerForRemove(R), HandlerForiRRAMMethod(R) {
         // Add a matcher to find iRRAM variable declaration or function declaration or parameter declaration
         // e.g. -----------------------
         //        REAL a;
@@ -326,10 +339,15 @@ public:
                         hasName("compute")).bind("mainFuncDecl"),
                 &HandlerForMainFunc);
 
-        // Add a matcher to find 'iRRAM_initialize' function
+        // Add a matcher to remove 'iRRAM_initialize' function
         Matcher.addMatcher(
                 callExpr(callee(functionDecl(hasName("iRRAM_initialize")))).bind(
-                        "iRRAMInit"), &HandlerForiRRAMInit);
+                        "ExprToRemove"), &HandlerForRemove);
+
+        // Add a matcher to remove 'precision_policy' function
+        Matcher.addMatcher(
+                callExpr(callee(functionDecl(hasName("precision_policy")))).bind(
+                        "ExprToRemove"), &HandlerForRemove);
 
         // Add a matcher to handler iRRAM methods
         Matcher.addMatcher(memberCallExpr().bind("iRRAMMethod"),
@@ -338,6 +356,10 @@ public:
         // Add a matcher to handle io functions
         Matcher.addMatcher(
                 callExpr(callee(functionDecl(hasName("setRwidth")))).bind(
+                        "IOFunction"), &HandlerForIOStream);
+
+        Matcher.addMatcher(
+                callExpr(callee(functionDecl(hasName("setRflags")))).bind(
                         "IOFunction"), &HandlerForIOStream);
 
     }
@@ -352,7 +374,7 @@ private:
     MainFuncHandler HandlerForMainFunc;
     NamespaceHandler HandlerForNamespace;
     IOStreamHandler HandlerForIOStream;
-    iRRAMInitHandler HandlerForiRRAMInit;
+    RemoveHandler HandlerForRemove;
     iRRAMMethodHandler HandlerForiRRAMMethod;
     MatchFinder Matcher;
 };
